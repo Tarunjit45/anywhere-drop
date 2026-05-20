@@ -1,108 +1,111 @@
-let peerConnection = new RTCPeerConnection({
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] // Free Google STUN server for global routing
-});
-let dataChannel;
+let peer = null;
+let connection = null;
 
-const btnInit = document.getElementById('btn-init');
-const btnConnect = document.getElementById('btn-connect');
-const txtHandshake = document.getElementById('txt-handshake');
 const statusMsg = document.getElementById('status-msg');
 const setupArea = document.getElementById('setup-area');
 const shareArea = document.getElementById('share-area');
+const hostView = document.getElementById('host-view');
+const joinView = document.getElementById('join-view');
+const roomCodeText = document.getElementById('room-code-text');
+const roomLinkText = document.getElementById('room-link-text');
+const inputRoomCode = document.getElementById('input-room-code');
+const btnJoin = document.getElementById('btn-join');
 const fileInput = document.getElementById('file-input');
+const progress = document.getElementById('progress');
+const downloadLink = document.getElementById('download-link');
 
-// Device 1: Sender initiates
-btnInit.onclick = async () => {
-    dataChannel = peerConnection.createDataChannel("fileTransfer");
-    setupDataChannelHandlers(dataChannel);
+// Generate or extract 6-digit room token from URL hash
+let roomCode = window.location.hash.substring(1);
+const isHost = !roomCode; 
 
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
+if (isHost) {
+    // Generate a random 6-digit room code for the host (Laptop)
+    roomCode = Math.floor(100000 + Math.random() * 900000).toString();
+    window.location.hash = roomCode;
     
-    // Wait for ICE candidates to gather completely before showing the string
-    peerConnection.onicecandidate = (e) => {
-        if (!e.candidate) {
-            txtHandshake.value = btoa(JSON.stringify(peerConnection.localDescription));
-            statusMsg.innerText = "Copy the code above and send it to your other device.";
-        }
-    };
+    hostView.style.display = "block";
+    joinView.style.display = "none";
+    roomCodeText.innerText = roomCode;
+    roomLinkText.innerText = `Or visit: ${window.location.origin}/#${roomCode}`;
+    
+    // Initialize host peer using the room code as its ID
+    peer = new Peer(`anywhr-drop-${roomCode}`);
+    statusMsg.innerText = "Waiting for mobile phone to join...";
+    
+    // Listen for incoming connection from mobile phone
+    peer.on('connection', (conn) => {
+        connection = conn;
+        setupDataChannel();
+    });
+} else {
+    // This device is the client (Phone) joining an existing code
+    hostView.style.display = "none";
+    joinView.style.display = "block";
+    inputRoomCode.value = roomCode;
+    statusMsg.innerText = "Ready to connect.";
+    
+    peer = new Peer(); // Random client ID
+}
+
+// Client manually clicking connect or automated via URL
+btnJoin.onclick = () => {
+    const targetCode = inputRoomCode.value.trim();
+    if (targetCode.length !== 6) return alert("Please enter a valid 6-digit code");
+    
+    statusMsg.innerText = "Connecting...";
+    connection = peer.connect(`anywhr-drop-${targetCode}`);
+    setupDataChannel();
 };
 
-// Device 2 or 1: Paste and Connect
-btnConnect.onclick = async () => {
-    const rawData = txtHandshake.value.trim();
-    if (!rawData) return alert("Please paste a handshake code first.");
-    const signal = JSON.parse(atob(rawData));
-
-    if (signal.type === "offer") {
-        // Device 2 receiving the offer
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        
-        peerConnection.onicecandidate = (e) => {
-            if (!e.candidate) {
-                txtHandshake.value = btoa(JSON.stringify(peerConnection.localDescription));
-                statusMsg.innerText = "Copy this reply code and paste it back into Device 1.";
-            }
-        };
-    } else if (signal.type === "answer") {
-        // Device 1 receiving back the answer
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
-    }
-};
-
-// Handle incoming connection (for Receiver)
-peerConnection.ondatachannel = (event) => {
-    setupDataChannelHandlers(event.channel);
-};
-
-function setupDataChannelHandlers(channel) {
-    channel.onopen = () => {
+// Handle data transfer logic
+function setupDataChannel() {
+    connection.on('open', () => {
         setupArea.style.display = 'none';
         shareArea.style.display = 'block';
-        statusMsg.innerText = "Connected directly!";
-    };
+        statusMsg.innerText = "Connected Peer-to-Peer natively!";
+    });
 
     let receivedChunks = [];
     let fileMeta = null;
 
-    channel.onmessage = (event) => {
-        if (typeof event.data === 'string') {
-            fileMeta = JSON.parse(event.data);
+    connection.on('data', (data) => {
+        // Handle metadata JSON string
+        if (typeof data === 'string') {
+            fileMeta = JSON.parse(data);
             receivedChunks = [];
-            document.getElementById('progress').style.display = 'block';
+            progress.style.display = 'block';
+            progress.value = 0;
             return;
         }
 
-        receivedChunks.push(event.data);
+        // Handle raw file data chunks
+        receivedChunks.push(data);
         let currentSize = receivedChunks.reduce((acc, chunk) => acc + chunk.byteLength, 0);
-        document.getElementById('progress').value = (currentSize / fileMeta.size) * 100;
+        progress.value = (currentSize / fileMeta.size) * 100;
 
         if (currentSize === fileMeta.size) {
             const blob = new Blob(receivedChunks);
             const url = URL.createObjectURL(blob);
-            const downloadLink = document.getElementById('download-link');
-            downloadLink.innerHTML = `<a href="${url}" download="${fileMeta.name}" style="color:#3b82f6; display:block; margin-top:1rem;">📥 Download ${fileMeta.name}</a>`;
-            document.getElementById('progress').style.display = 'none';
+            downloadLink.innerHTML = `<a href="${url}" download="${fileMeta.name}" style="color:#3b82f6; display:block; margin-top:1rem; font-weight:bold;">📥 Download ${fileMeta.name}</a>`;
+            progress.style.display = 'none';
         }
-    };
+    });
 }
 
-// Sending File Logic (Chunks of 16KB to prevent buffer overflow)
+// Send file implementation broken into 16KB binary chunks
 fileInput.onchange = () => {
     const file = fileInput.files[0];
-    if (!file) return;
+    if (!file || !connection) return;
 
-    const channel = dataChannel || peerConnection.channel; 
-    channel.send(JSON.stringify({ name: file.name, size: file.size }));
+    // Send metadata details first
+    connection.send(JSON.stringify({ name: file.name, size: file.size }));
 
-    const chunkSize = 16384;
+    const chunkSize = 16384; 
     const reader = new FileReader();
     let offset = 0;
 
     reader.onload = (e) => {
-        channel.send(e.target.result);
+        connection.send(e.target.result);
         offset += e.target.result.byteLength;
         if (offset < file.size) {
             readNextChunk();
