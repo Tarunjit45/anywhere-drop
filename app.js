@@ -14,6 +14,19 @@ const fileInput = document.getElementById('file-input');
 const progress = document.getElementById('progress');
 const downloadLink = document.getElementById('download-link');
 
+// Robust ICE configuration to help punch through strict network firewalls
+const iceConfig = {
+    config: {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' }
+        ],
+        iceCandidatePoolSize: 10
+    }
+};
+
 // Generate or extract 6-digit room token from URL hash
 let roomCode = window.location.hash.substring(1);
 const isHost = !roomCode; 
@@ -29,13 +42,18 @@ if (isHost) {
     roomLinkText.innerText = `Or visit: ${window.location.origin}/#${roomCode}`;
     
     // Initialize host peer using the room code as its ID
-    peer = new Peer(`anywhr-drop-${roomCode}`);
+    peer = new Peer(`anywhr-drop-${roomCode}`, iceConfig);
     statusMsg.innerText = "Waiting for mobile phone to join...";
     
     // Listen for incoming connection from mobile phone
     peer.on('connection', (conn) => {
         connection = conn;
         setupDataChannel();
+    });
+
+    peer.on('error', (err) => {
+        console.error(err);
+        statusMsg.innerText = "Connection error. Retrying...";
     });
 } else {
     // This device is the client (Phone) joining an existing code
@@ -44,7 +62,12 @@ if (isHost) {
     inputRoomCode.value = roomCode;
     statusMsg.innerText = "Ready to connect.";
     
-    peer = new Peer(); // Random client ID
+    peer = new Peer(iceConfig); // Random client ID
+
+    peer.on('error', (err) => {
+        console.error(err);
+        statusMsg.innerText = "Error linking to server.";
+    });
 }
 
 // Client manually clicking connect or automated via URL
@@ -52,8 +75,10 @@ btnJoin.onclick = () => {
     const targetCode = inputRoomCode.value.trim();
     if (targetCode.length !== 6) return alert("Please enter a valid 6-digit code");
     
-    statusMsg.innerText = "Connecting...";
-    connection = peer.connect(`anywhr-drop-${targetCode}`);
+    statusMsg.innerText = "Connecting... Please keep this tab active on both devices.";
+    connection = peer.connect(`anywhr-drop-${targetCode}`, {
+        reliable: true
+    });
     setupDataChannel();
 };
 
@@ -63,6 +88,12 @@ function setupDataChannel() {
         setupArea.style.display = 'none';
         shareArea.style.display = 'block';
         statusMsg.innerText = "Connected Peer-to-Peer natively!";
+    });
+
+    connection.on('close', () => {
+        statusMsg.innerText = "Connection lost. Please refresh pages to reconnect.";
+        setupArea.style.display = 'block';
+        shareArea.style.display = 'none';
     });
 
     let receivedChunks = [];
