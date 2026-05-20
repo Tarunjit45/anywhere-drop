@@ -3,35 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anywhere P2P Drop</title>
+    <title>Instant Anywhere Share</title>
     <style>
         body { font-family: -apple-system, sans-serif; background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .card { background: #1e293b; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); width: 90%; max-width: 400px; text-align: center; }
         button { background: #3b82f6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 1rem; width: 100%; margin-top: 1rem; }
         button:hover { background: #2563eb; }
-        textarea { width: 100%; height: 80px; margin-top: 0.5rem; background: #334155; border: 1px solid #475569; color: white; border-radius: 6px; box-sizing: border-box; padding: 0.5rem; }
-        input[type="file"] { margin: 1rem 0; }
+        input[type="text"] { width: 100%; padding: 0.75rem; background: #334155; border: 1px solid #475569; color: white; border-radius: 6px; box-sizing: border-box; text-align: center; font-size: 1.2rem; letter-spacing: 2px; }
+        input[type="file"] { margin: 1.5rem 0; }
+        .room-display { font-size: 2rem; font-weight: bold; color: #3b82f6; margin: 1rem 0; letter-spacing: 4px; }
         .status { margin-top: 1rem; color: #94a3b8; font-size: 0.9rem; }
+        progress { width: 100%; height: 12px; border-radius: 6px; margin-top: 1rem; }
     </style>
+    <!-- Include PeerJS library for automatic handshaking -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
     <div class="card">
-        <h2>Anywhere P2P Share</h2>
-        <p id="step-title">Step 1: Initialize Connection</p>
+        <h2>Anywhere Drop</h2>
         
+        <!-- Setup Screen -->
         <div id="setup-area">
-            <button id="btn-init">Create Handshake Code</button>
-            <textarea id="txt-handshake" placeholder="Handshake data will appear here or paste receiver code here..."></textarea>
-            <button id="btn-connect" style="background:#10b981">Connect to Peer</button>
+            <div id="host-view" style="display:none;">
+                <p>On your phone, enter this code:</p>
+                <div class="room-display" id="room-code-text">------</div>
+                <p style="font-size:0.8rem; color:#64748b;" id="room-link-text">Or scan/open link...</p>
+            </div>
+
+            <div id="join-view">
+                <p>Enter 6-Digit Room Code</p>
+                <input type="text" id="input-room-code" placeholder="000000" maxlength="6">
+                <button id="btn-join">Connect</button>
+            </div>
         </div>
 
+        <!-- File Sharing Screen (Hidden until connected) -->
         <div id="share-area" style="display:none;">
-            <p style="color:#10b981; font-weight:bold;">✓ Connected!</p>
-            <input type="file" id="file-input"><br>
-            <progress id="progress" value="0" max="100" style="width:100%; display:none;"></progress>
+            <p style="color:#10b981; font-weight:bold; font-size: 1.2rem;">✓ Connected!</p>
+            <input type="file" id="file-input">
+            <progress id="progress" value="0" max="100" style="display:none;"></progress>
             <div id="download-link"></div>
         </div>
-        <div class="status" id="status-msg">Disconnected</div>
+
+        <div class="status" id="status-msg">Initializing...</div>
     </div>
 
     <script src="app.js"></script>
