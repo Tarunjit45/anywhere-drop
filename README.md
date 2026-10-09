@@ -1,58 +1,63 @@
-# 🚀 anywhere-drop
+# 🚀 Anywhere Drop — Serverless Peer-to-Peer (P2P) WebRTC File Sharing
 
-![Language](https://img.shields.io/badge/Language-JavaScript-blue?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
-![Status](https://img.shields.io/badge/Production-Active-success?style=for-the-badge)
+[![JavaScript](https://img.shields.io/badge/Language-Vanilla%20JS-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+[![WebRTC](https://img.shields.io/badge/Protocol-WebRTC%20DataChannel-333333?style=for-the-badge&logo=webrtc&logoColor=white)](https://webrtc.org/)
+[![Zero Server](https://img.shields.io/badge/Architecture-Serverless%20P2P-00C853?style=for-the-badge)](README.md)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-## 📌 Overview
+**Anywhere Drop** is a zero-dependency, serverless peer-to-peer (P2P) file sharing application built with pure HTML5, vanilla JavaScript, and **WebRTC DataChannels**. Send files directly from device to device with **no file size limits**, **no intermediary cloud storage**, and **end-to-end encrypted direct transfers**.
 
-A serverless, zero-dependency peer-to-peer (P2P) file sharing system built with WebRTC and deployed on Vercel. Share files instantly from anywhere without third-party apps.
+---
 
-## ✨ Key Features & Architecture
+## 📌 How P2P DataChannel Transfers Work
 
-- **High-Performance Codebase:** Built using `JavaScript` and modern engineering principles.
-- **Modular & Scalable Design:** Structured directory tree for seamless development and deployment.
+```
+[ Sender Browser ]                                      [ Receiver Browser ]
+       |                                                         |
+       | <------------- Signaling (Room Code Exchange) ---------> |
+       |                                                         |
+       +=========================================================+
+       |             Direct Encrypted WebRTC DataChannel         |
+       |         (Bytes stream peer-to-peer over local/WAN)      |
+       +=========================================================+
+       |                                                         |
+[ Local File Read ]                                      [ File Blob Download ]
+```
 
-## 🛠️ Tech Stack & Dependencies
+1. **Host a Room:** Generates a short room code or direct share link.
+2. **Join Room:** Receiver inputs code or clicks link to perform WebRTC handshake.
+3. **Direct Transfer:** Files are chunked into binary ArrayBuffers and streamed directly between browser sessions at full network speed.
+4. **Zero Cloud Ingestion:** Files never touch an external server or third-party database.
 
-- **Core Language:** `JavaScript`
-- **Libraries & Tools:** JavaScript
-- **Deployment Infrastructure:** Vercel Edge / Cloud Services
+---
 
-## 📁 Architecture & File Layout
+## 📁 Repository Structure
 
 ```text
 anywhere-drop/
-├── .github
-├── .github/ISSUE_TEMPLATE
-├── .github/ISSUE_TEMPLATE/bug_report.md
-├── .github/ISSUE_TEMPLATE/feature_request.md
-├── .github/PULL_REQUEST_TEMPLATE.md
-├── .github/workflows
-├── .github/workflows/ci.yml
-├── CODE_OF_CONDUCT.md
-├── CONTRIBUTING.md
-├── LICENSE
-├── README.md
-├── app.js
-├── index.html
+├── index.html          # Clean, responsive file transfer UI & dropzone
+├── app.js              # Pure WebRTC DataChannel connection & chunk streaming logic
+├── LICENSE             # MIT License
+└── README.md
 ```
 
-## 🚀 Quickstart & Installation
+---
 
-### Prerequisites
-- Git
-- Modern Web Browser / Runtime
+## 🚀 Usage
 
-### Setup Instructions
+No complex backend setup required! You can serve the static files with any HTTP server:
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/Tarunjit45/anywhere-drop.git
-   cd anywhere-drop
-   ```
+```bash
+git clone https://github.com/Tarunjit45/anywhere-drop.git
+cd anywhere-drop
 
-## 📜 Author & License
+# Run with any static server (e.g. Python, Node, or VS Code Live Server)
+python -m http.server 8000
+```
 
-Architected & Developed by **[Tarunjit Biswas](https://github.com/Tarunjit45)**.  
-Distributed under the **MIT License**.
+Open [http://localhost:8000](http://localhost:8000) on two devices or browser tabs to start sending files instantly.
+
+---
+
+## 📄 License
+This project is licensed under the [MIT License](LICENSE).
